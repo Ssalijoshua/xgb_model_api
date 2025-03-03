@@ -1,85 +1,80 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
+import pandas as pd
 import numpy as np
 import joblib
+import os
 
 # Load the trained model
 model = joblib.load("xgb_model.pkl")
 
 # Initialize Flask app
 app = Flask(__name__)
+
+# Define the upload folder
+UPLOAD_FOLDER = "uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+@app.route("/")
+def home():
+    return render_template("index.html")
 
 @app.route("/predict", methods=["POST"])
 def predict():
     try:
-        # Log the request headers and body
-        app.logger.info("Headers: %s", request.headers)
-        app.logger.info("Body: %s", request.get_data())
+        # Check if a file is uploaded
+        if "file" not in request.files:
+            return jsonify({"error": "No file uploaded"}), 400
 
-        # Check the Content-Type header
-        if request.headers.get("Content-Type") != "application/json":
-            return jsonify({"error": "Content-Type must be application/json"}), 415
+        file = request.files["file"]
 
-        # Get the input data from the request
-        data = request.json
+        # Check if the file is a CSV
+        if file.filename == "":
+            return jsonify({"error": "No file selected"}), 400
 
-        # Check if 'features' key exists
-        if "features" not in data:
-            return jsonify({"error": "Missing 'features' key in request"}), 400
+        if not file.filename.endswith(".csv"):
+            return jsonify({"error": "File must be a CSV"}), 400
+
+        # Save the file temporarily
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+        file.save(file_path)
+
+        # Load the CSV file
+        df = pd.read_csv(file_path)
+
+        # Check if the CSV has the required columns
+        if "Features" not in df.columns:
+            return jsonify({"error": "CSV must have a 'Features' column"}), 400
+
+        # Convert the 'Features' column to a list of lists
+        features_list = df["Features"].apply(lambda x: list(map(float, x.split(',')))).tolist()
 
         # Convert the input features into a NumPy array
-        features = np.array(data["features"]).reshape(1, -1)
+        features = np.array(features_list)
 
-        # Make a prediction
-        prediction = model.predict(features)
-        prediction_proba = model.predict_proba(features)
+        # Make predictions
+        predictions = model.predict(features)
+        prediction_probas = model.predict_proba(features)
 
-        # Return the prediction as a JSON response
-        return jsonify({
-            "prediction": int(prediction[0]),
-            "probabilities": prediction_proba.tolist()
-        })
+        # Add predictions to the DataFrame
+        df["Prediction"] = predictions
+        df["Probability_Class_0"] = prediction_probas[:, 0]
+        df["Probability_Class_1"] = prediction_probas[:, 1]
+
+        # Convert the DataFrame to JSON
+        result = df.to_dict(orient="records")
+
+        # Return the result as JSON
+        return jsonify(result)
 
     except Exception as e:
-        # Return a 500 error with the exception message
         return jsonify({"error": str(e)}), 500
 
-@app.route("/")
-def home():
-    return "Random Forest Model API is running!"
+    finally:
+        # Clean up: Delete the uploaded file
+        if os.path.exists(file_path):
+            os.remove(file_path)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
-from flask import Flask, request, jsonify
-import joblib
-import numpy as np
 
-# Load the trained model
-model = joblib.load("xgb_model.pkl")
-
-# Initialize Flask app
-app = Flask(__name__)
-
-@app.route("/predict", methods=["POST"])
-def predict():
-    # Get the input data from the request
-    data = request.json
-
-    # Convert the input features into a NumPy array
-    features = np.array(data["features"]).reshape(1, -1)  # Reshape to (1, n_features)
-
-    # Make a prediction
-    prediction = model.predict(features)
-    prediction_proba = model.predict_proba(features)
-
-    # Return the prediction as a JSON response
-    return jsonify({
-        "prediction": int(prediction[0]),  # Convert numpy int64 to Python int
-        "probabilities": prediction_proba.tolist()  # Convert numpy array to list
-    })
-
-@app.route("/")
-def home():
-    return "Model API is running!"
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)

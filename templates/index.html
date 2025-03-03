@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Prediction</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Upload CSV for Predictions</h1>
+        <form id="uploadForm">
+            <input type="file" id="fileInput" name="file" accept=".csv" required>
+            <button type="submit">Upload and Predict</button>
+        </form>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        document.getElementById("uploadForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            const fileInput = document.getElementById("fileInput");
+            const resultDiv = document.getElementById("result");
+
+            if (fileInput.files.length === 0) {
+                resultDiv.innerHTML = "<p>Please select a file.</p>";
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("file", fileInput.files[0]);
+
+            try {
+                const response = await fetch("/predict", {
+                    method: "POST",
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    throw new Error("Error uploading file");
+                }
+
+                const data = await response.json();
+
+                // Display the results in a table
+                let table = "<table><tr><th>Features</th><th>Prediction</th><th>Probability (Class 0)</th><th>Probability (Class 1)</th></tr>";
+                data.forEach(row => {
+                    table += `<tr>
+                        <td>${row.Features}</td>
+                        <td>${row.Prediction}</td>
+                        <td>${row.Probability_Class_0.toFixed(4)}</td>
+                        <td>${row.Probability_Class_1.toFixed(4)}</td>
+                    </tr>`;
+                });
+                table += "</table>";
+
+                resultDiv.innerHTML = table;
+            } catch (error) {
+                resultDiv.innerHTML = `<p>Error: ${error.message}</p>`;
+            }
+        });
+    </script>
+</body>
+</html>
