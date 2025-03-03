@@ -58,8 +58,8 @@ def predict():
 
         # Add predictions to the DataFrame
         df["Prediction"] = predictions
-        df["Unregulated arousal"] = prediction_probas[:, 0]
-        df["Regulated arousal"] = prediction_probas[:, 1]
+        df["Probability_Class_0"] = prediction_probas[:, 0]
+        df["Probability_Class_1"] = prediction_probas[:, 1]
 
         # Convert the DataFrame to JSON
         result = df.to_dict(orient="records")
