@@ -44,13 +44,12 @@
                 const data = await response.json();
 
                 // Display the results in a table
-                let table = "<table><tr><th>Features</th><th>Prediction</th><th>Probability (Class 0)</th><th>Probability (Class 1)</th></tr>";
+                let table = "<table><tr><th>Prediction</th><th>Confidence (Unregulated)</th><th>Confidence (Regulated)</th></tr>";
                 data.forEach(row => {
                     table += `<tr>
-                        <td>${row.Features}</td>
                         <td>${row.Prediction}</td>
-                        <td>${row.Probability_Class_0.toFixed(4)}</td>
-                        <td>${row.Probability_Class_1.toFixed(4)}</td>
+                        <td>${row.Confidence_Class_0.toFixed(4)}</td>
+                        <td>${row.Confidence_Class_1.toFixed(4)}</td>
                     </tr>`;
                 });
                 table += "</table>";

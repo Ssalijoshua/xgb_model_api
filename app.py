@@ -5,7 +5,7 @@ import joblib
 import os
 
 # Load the trained model
-model = joblib.load("xgb_model.pkl")
+model = joblib.load("xgb_model.pkl")  # Ensure this matches your model file name
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -56,16 +56,19 @@ def predict():
         predictions = model.predict(features)
         prediction_probas = model.predict_proba(features)
 
-        # Add predictions to the DataFrame
-        df["Prediction"] = predictions
-        df["Probability_Class_0"] = prediction_probas[:, 0]
-        df["Probability_Class_1"] = prediction_probas[:, 1]
+        # Prepare the results (only predictions and confidence scores)
+        results = []
+        for pred, proba in zip(predictions, prediction_probas):
+            # Map prediction to "Unregulated Arousal" or "Regulated Arousal"
+            prediction_label = "Regulated Arousal" if pred == 1 else "Unregulated Arousal"
+            results.append({
+                "Prediction": prediction_label,
+                "Confidence_Class_0": float(proba[0]),
+                "Confidence_Class_1": float(proba[1])
+            })
 
-        # Convert the DataFrame to JSON
-        result = df.to_dict(orient="records")
-
-        # Return the result as JSON
-        return jsonify(result)
+        # Return the results as JSON
+        return jsonify(results)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -77,4 +80,3 @@ def predict():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
-
